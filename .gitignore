@@ -3,3 +3,4 @@ venv/
 temporary/
 static/
 *.pyc
+*.sqlite3
