@@ -3,7 +3,7 @@ from django.contrib.auth.admin import UserAdmin as AuthUserAdmin
 from django.contrib.auth.forms import UserChangeForm
 from django.utils.translation import gettext_lazy as _
 
-from user.models import User, UserId, Profile
+from user.models import *
 
 class CustomUserChange(UserChangeForm):
     class Meta(UserChangeForm.Meta):
@@ -53,5 +53,19 @@ class ProfileAdmin(admin.ModelAdmin):
     list_filter = ("user", "first_name", "last_name", "country", "city")
     search_fields = ("first_name", "last_name", "country", "city")
 
+class BusinessAttributeInline(admin.StackedInline):
+    model = BA_Attribute_Value
+    extra = 3
+
+class BusinessAccountAdmin(admin.ModelAdmin):
+    model = BusinessAccount
+    inlines = [BusinessAttributeInline]
+    list_display = ("title_tm", "is_active", "is_verified", 'rating')
+    list_filter = ('is_active', "is_verified", 'rating')
+    search_fields = ("email", "facebook", "instagram", "telegram", "phone")
+
 admin.site.register(User, UserAdmin)
 admin.site.register(Profile, ProfileAdmin)
+admin.site.register(UserId)
+admin.site.register(BusinessAccount, BusinessAccountAdmin)
+admin.site.register(BA_Attribute)
