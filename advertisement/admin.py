@@ -24,6 +24,9 @@ class AdvertisementAdmin(admin.ModelAdmin):
             "is_vip",
             "rating",
             "rating_count",
+            "seen_count",
+            "like_count"
+
         )}),
         (None, {"fields":(
             "title_tm",
@@ -32,6 +35,7 @@ class AdvertisementAdmin(admin.ModelAdmin):
             "description_tm",
             "description_ru",
             "description_en",
+            "price",
             "image1",
             "image2",
             "image3",

@@ -15,8 +15,11 @@ class UserAdmin(AuthUserAdmin):
             "username", 
             "password",
             "email",
+            "email_verified",
             "mobile",
+            "mobile_verified",
             "firebase_token",
+            "ads_count",
             )}),
         (
             _("Permissions"),

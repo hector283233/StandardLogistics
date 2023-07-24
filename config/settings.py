@@ -169,7 +169,7 @@ AUTH_PASSWORD_VALIDATORS = [
 ]
 
 # =============================================================================== #
-LANGUAGE_CODE = 'ru-ru'
+LANGUAGE_CODE = 'tk-tk'
 
 TIME_ZONE = 'Asia/Ashgabat'
 

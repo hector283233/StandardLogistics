@@ -9,8 +9,10 @@ from rest_framework.permissions import IsAuthenticated
 from django.contrib.auth.hashers import make_password
 from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework.pagination import LimitOffsetPagination
+from django.db.models import Q
 
-from user.models import User, Profile
+from user.models import (User, Profile, BusinessAccount, 
+                         BA_Attribute_Value, BA_Attribute)
 from .serializers import *
 from GlobalVariables import *
 from api.utils import *
@@ -283,11 +285,12 @@ class UpdateUser(APIView):
         operation_description="Need to authorize with Bearer token.",
         responses={200: UserDetailSerializer}
     )
-    def post(self, request):
+    def put(self, request):
         try:
             data = request.data
             serializer = UserUpdateSerializer(data=data)
             if serializer.is_valid():
+
                 user = request.user
                 if 'mobile' in data:
                     if data['mobile'] != None and data["mobile"] != "":
@@ -295,6 +298,13 @@ class UpdateUser(APIView):
                 if 'email'  in data:
                     if data["email"] != None and data["email"] != "":
                         user.email = data['email']
+                if 'mobile_verified' in data:
+                    if data['mobile_verified'] == True:
+                        user.mobile_verified = True
+                if 'email_verified' in data:
+                    if data['email_verified'] == True:
+                        user.email_verified = True
+                
                 user.save()
                 out_serializer = UserDetailSerializer(user)
                 return Response({
@@ -442,3 +452,462 @@ class UserListPaginated(APIView, LimitOffsetPagination):
                 "response":"error",
                 "message": MSG_UNKNOWN_ERROR
             }, status=status.HTTP_400_BAD_REQUEST)
+        
+
+class BusinessAccountList(APIView, LimitOffsetPagination):
+    verified = openapi.Parameter('verified', in_=openapi.IN_QUERY, type=openapi.TYPE_BOOLEAN)
+    title = openapi.Parameter("title", in_=openapi.IN_QUERY, type=openapi.TYPE_STRING)
+    description = openapi.Parameter("description", in_=openapi.IN_QUERY, type=openapi.TYPE_STRING)
+    email = openapi.Parameter("email", in_=openapi.IN_QUERY, type=openapi.TYPE_STRING)
+    instagram = openapi.Parameter("instagram", in_=openapi.IN_QUERY, type=openapi.TYPE_STRING)
+    facebook = openapi.Parameter("facebook", in_=openapi.IN_QUERY, type=openapi.TYPE_STRING)
+    telegram = openapi.Parameter("telegram", in_=openapi.IN_QUERY, type=openapi.TYPE_STRING)
+    phone = openapi.Parameter("phone", in_=openapi.IN_QUERY, type=openapi.TYPE_STRING)
+    rating = openapi.Parameter('rating', in_=openapi.IN_QUERY, type=openapi.TYPE_BOOLEAN)
+    created = openapi.Parameter('created', in_=openapi.IN_QUERY, type=openapi.TYPE_BOOLEAN)
+    attribute = openapi.Parameter("attribute", in_=openapi.IN_QUERY, type=openapi.TYPE_INTEGER)
+    atrvalue = openapi.Parameter("atrvalue", in_=openapi.IN_QUERY, type=openapi.TYPE_STRING)
+    @swagger_auto_schema(
+        manual_parameters=[verified, title, description, email, instagram, facebook, 
+                           telegram, phone, rating, created, attribute, atrvalue],
+        operation_description="Authorization IS NOT required.\n\n " \
+                                "***IMPORTANT*** 'attribute' and 'atrvalue' needs to be proved together.\n\n " \
+                                "***IMPORTANT*** 'rating' and 'created' are ordering properties and should be" \
+                                " queried saparately.",
+        operation_summary="Paginated list of buziness accounts.",
+        responses={200: BusinessAccountListSerializer}
+    )
+    def get(self, request):
+        try:
+            verified = request.query_params.get("verified", None)
+            title = request.query_params.get("title", None)
+            description = request.query_params.get("description", None)
+            email = request.query_params.get("email", None)
+            instagram = request.query_params.get("instagram", None)
+            facebook = request.query_params.get("facebook", None)
+            telegram = request.query_params.get("telegram", None)
+            phone = request.query_params.get("phone", None)
+            rating = request.query_params.get("rating", None)
+            created = request.query_params.get("created", None)
+            attribute = request.query_params.get("attribute", None)
+            atrvalue = request.query_params.get("atrvalue", None)
+            
+            accounts = BusinessAccount.objects.filter(is_active=True)
+            
+            if verified == "true":
+                accounts = accounts.filter(is_verified=True)
+            if verified == "false":
+                accounts = accounts.filter(is_verified=False)
+            if title:
+                accounts = accounts.filter(Q(title_tm__icontains=title) | 
+                                        Q(title_ru__icontains=title) |
+                                        Q(title_en__icontains=title))
+            if description:
+                accounts = accounts.filter(Q(description_tm__icontains=description) |
+                                        Q(description_ru__icontains=description) |
+                                        Q(description_en__icontains=description))
+            if email:
+                accounts = accounts.filter(Q(email__icontains=email))
+            if instagram:
+                accounts = accounts.filter(Q(instagram__icontains=instagram))
+            if facebook:
+                accounts = accounts.filter(Q(facebook__icontains=facebook))
+            if telegram:
+                accounts = accounts.filter(Q(telegram__icontains=telegram))
+            if phone:
+                accounts = accounts.filter(Q(phone__icontains=phone))
+            if rating == "true":
+                accounts = accounts.order_by("-rating")
+            if rating == "false":
+                accounts = accounts.order_by("rating")
+            if created == "true":
+                accounts = accounts.order_by("-created_at")
+            if created == "false":
+                accounts = accounts.order_by("created_at")
+
+            if attribute and atrvalue:
+                attribute = int(attribute)
+                atrvalue = str(atrvalue)
+                ba_list = BA_Attribute_Value.objects.filter(
+                                        Q(attribute__id=attribute) &
+                                        Q(value_tm__icontains=atrvalue)).values_list(
+                                        'business_account__pk',
+                                        flat=True)
+                accounts = accounts.filter(pk__in=ba_list)
+            
+                
+            data = self.paginate_queryset(accounts, request, view=self)
+            serializer = BusinessAccountListSerializer(data, many=True)
+            results = self.get_paginated_response(serializer.data)
+            return Response({
+                "response":"success",
+                "data":results.data
+            })
+        except:
+            return Response({
+                "response":"error",
+                "message": MSG_UNKNOWN_ERROR
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+class BusinessAccountDetail(APIView):
+    @swagger_auto_schema(
+            operation_summary="Authorization IS NOT Required",
+            operation_description="***IMPORTANT*** 'pk' IS primary key of business account, NOT primary key of user account.",
+            responses={200: BusinessAccountDetailSerializer}
+    )
+    def get(self, request, pk):
+        try:
+            if BusinessAccount.objects.filter(pk=pk).exists():
+                account = BusinessAccount.objects.get(pk=pk)
+                serializer = BusinessAccountDetailSerializer(account)
+                return Response({
+                    "response":"success",
+                    "data":serializer.data
+                })
+            else:
+                return Response({
+                    "response":"error",
+                    "message": MSG_BA_NOT_FOUND,
+                }, status=status.HTTP_404_NOT_FOUND)
+        except:
+            return Response({
+                "response":"error",
+                "message": MSG_UNKNOWN_ERROR
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+class BusinessAccountCreate(APIView):
+    permission_classes = [IsAuthenticated]
+    parser_classes = [MultiPartParser, FormParser]
+    @swagger_auto_schema(
+            operation_description="Authorization IS Required.",
+            operation_summary="Create Business account.",
+            request_body=BusinessAccountCreateSerializer,
+    )
+    def post(self, request):
+        try:
+            user = request.user
+            data = request.data
+            data['user'] = user.id
+            if BusinessAccount.objects.filter(user=user).exists():
+                return Response({
+                    "response":"error",
+                    "message": MSG_BA_EXISTS
+                })
+            serializer = BusinessAccountCreateSerializer(data=data)
+            if serializer.is_valid():
+                serializer.save()
+                if BusinessAccount.objects.filter(pk=serializer.data['id']).exists():
+                    out_account = BusinessAccount.objects.get(pk=serializer.data['id'])
+                    out_serializer = BusinessAccountDetailSerializer(out_account)
+                    return Response({
+                        "response":"success",
+                        "data": out_serializer.data
+                    })
+                else:
+                    return Response({
+                        "response":"error",
+                        "message": MSG_UNKNOWN_ERROR
+                    })
+            else:
+                return Response({
+                    "response":"error",
+                    "message": MSG_DATA_NOT_VALID
+                })
+        except:
+            return Response({
+                "response":"error",
+                "message": MSG_UNKNOWN_ERROR
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+class BusinessAccountUpdate(APIView):
+    permission_classes = [IsAuthenticated]
+    parser_classes = [MultiPartParser, FormParser]
+    @swagger_auto_schema(
+            operation_description="Authorization IS required.",
+            operation_summary="Update business account.",
+            request_body=BusinessAccountCreateSerializer,
+            responses={200: BusinessAccountDetailSerializer}
+    )
+    def put(self, request, pk):
+        try:
+            user = request.user
+            if BusinessAccount.objects.filter(pk=pk).exists():
+                account = BusinessAccount.objects.get(pk=pk)
+                if account.user != user:
+                    return Response({
+                        "response":"error",
+                        "message": MSG_NOT_BELONG_TO_USER
+                    })
+                serializer = BusinessAccountCreateSerializer(account, data=request.data)
+                if serializer.is_valid():
+                    serializer.save()
+                    out_serializer = BusinessAccountDetailSerializer(account)
+                    return Response({
+                        "response":"success",
+                        "data": out_serializer.data
+                    })
+                else:
+                    return Response({
+                        "response":"error",
+                        "message": MSG_DATA_NOT_VALID
+                    })
+            else:
+                return Response({
+                        "response": "error",
+                        "message": MSG_BA_NOT_FOUND
+                    }, status=status.HTTP_404_NOT_FOUND)
+        except:
+            return Response({
+                "response":"error",
+                "message": MSG_UNKNOWN_ERROR
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+class BusinessAccountDelete(APIView):
+    permission_classes = [IsAuthenticated]
+    @swagger_auto_schema(
+        operation_description="Authorization IS required.",
+        operation_summary="Delete business account.",
+    )
+    def delete(self, request, pk):
+        try:
+            user = request.user
+            data = request.data
+            if BusinessAccount.objects.filter(pk=pk).exists():
+                account = BusinessAccount.objects.get(pk=pk)
+                if account.user != user:
+                    return Response({
+                        "response":"error",
+                        "message": MSG_NOT_BELONG_TO_USER
+                    })
+                account.delete()
+                return Response({
+                    "response": "success",
+                    "message": MSG_OBJECT_DELTED
+                })
+            else:
+                return Response({
+                        "response": "error",
+                        "message": MSG_BA_NOT_FOUND
+                    }, status=status.HTTP_404_NOT_FOUND)
+        except:
+            return Response({
+                "response":"error",
+                "message": MSG_UNKNOWN_ERROR
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+class BAAttrValueCreate(APIView):
+    permission_classes = [IsAuthenticated]
+    parser_classes = [MultiPartParser, FormParser]
+    @swagger_auto_schema(
+            operation_description="Authorization IS required.",
+            operation_summary="Update business account.",
+            request_body=BAAttributeValueCreateSerializer,
+            responses={200: BAAttributeValueCreateSerializer}
+    )
+    def post(self, request):
+        try:
+            user = request.user
+            data = request.data
+            ba_id = data['business_account']
+            ba_id = int(ba_id)
+            attr_id = data["attribute"]
+            attr_id = int(attr_id)
+            if BusinessAccount.objects.filter(pk=ba_id).exists() and  \
+                BA_Attribute.objects.filter(pk=attr_id).exists():
+                account = BusinessAccount.objects.get(pk=ba_id)
+                if account.user != user:
+                    return Response({
+                        "response":"error",
+                        "message": MSG_NOT_BELONG_TO_USER
+                    })
+                serializer = BAAttributeValueCreateSerializer(data=data)
+                if serializer.is_valid():
+                    serializer.save()
+                    if BA_Attribute_Value.objects.filter(pk=serializer.data['id']).exists():
+                        attr_value = BA_Attribute_Value.objects.get(pk=serializer.data["id"])
+                        out_serializer = BAAttributeValueOutSerializer(attr_value)
+                        return Response({
+                            "response":"success",
+                            "data": out_serializer.data
+                        })
+                    else:
+                        return Response({
+                            "response":"error",
+                            "message": MSG_UNKNOWN_ERROR
+                        })
+                else:
+                    return Response({
+                        "response":"error",
+                        "message": MSG_DATA_NOT_VALID
+                    })
+            else:
+                return Response({
+                    "response":"error",
+                    "message": MSG_OBJECT_NOT_FOUND
+                })
+        except:
+            return Response({
+                "response":"error",
+                "message": MSG_UNKNOWN_ERROR
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+class BAAttrValueUpdate(APIView):
+    permission_classes = [IsAuthenticated]
+    parser_classes = [MultiPartParser, FormParser]
+    @swagger_auto_schema(
+            operation_description="Authorization IS required.",
+            operation_summary="Update business update.",
+            request_body=BAAttributeValueCreateSerializer,
+            responses={200: BAAttributeValueCreateSerializer}
+    )
+    def put(self, request, pk):
+        try:
+            user = request.user
+            data = request.data
+            ba_id = data['business_account']
+            ba_id = int(ba_id)
+            attr_id = data["attribute"]
+            attr_id = int(attr_id)
+            if BA_Attribute_Value.objects.filter(pk=pk).exists():
+                ba_attr_value = BA_Attribute_Value.objects.get(pk=pk)
+                if BusinessAccount.objects.filter(pk=ba_id).exists() and  \
+                    BA_Attribute.objects.filter(pk=attr_id).exists():
+                    account = BusinessAccount.objects.get(pk=ba_id)
+                    if account.user != user:
+                        return Response({
+                            "response":"error",
+                            "message": MSG_NOT_BELONG_TO_USER
+                        })
+                    ba_attr_value = BA_Attribute_Value.objects.get(pk=pk)
+                    serializer = BAAttributeValueCreateSerializer(ba_attr_value, data=data)
+                    if serializer.is_valid():
+                        serializer.save()
+                        if BA_Attribute_Value.objects.filter(pk=serializer.data['id']).exists():
+                            attr_value = BA_Attribute_Value.objects.get(pk=serializer.data["id"])
+                            out_serializer = BAAttributeValueOutSerializer(attr_value)
+                            return Response({
+                                "response":"success",
+                                "data": out_serializer.data
+                            })
+                        else:
+                            return Response({
+                                "response":"error",
+                                "message": MSG_UNKNOWN_ERROR
+                            })
+                    else:
+                        return Response({
+                            "response":"error",
+                            "message": MSG_DATA_NOT_VALID
+                        })
+                else:
+                    return Response({
+                        "response":"error",
+                        "message": MSG_OBJECT_NOT_FOUND
+                    })
+            else:
+                return Response({
+                        "response": "error",
+                        "message": MSG_OBJECT_NOT_FOUND
+                    }, status=status.HTTP_404_NOT_FOUND)
+        except:
+            return Response({
+                "response":"error",
+                "message": MSG_UNKNOWN_ERROR
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+class BAAttrValueDelete(APIView):
+    permission_classes = [IsAuthenticated]
+    @swagger_auto_schema(
+        operation_description="Authorization IS required.\n\n "\
+            "***IMPORTANT***   need to provide 'business_account' as int," \
+            "bakcend will additionally check if the user can delete this object.",
+        operation_summary="business attribute delete.",
+        request_body=BAAttributeValueDeleteSerializer
+    )
+    def delete(self, request, pk):
+        try:
+            user = request.user
+            data = request.data
+            ba_id = data['business_account']
+            if BusinessAccount.objects.filter(pk=ba_id).exists():
+                account = BusinessAccount.objects.get(pk=ba_id)
+                if account.user != user:
+                    return Response({
+                        "response":"error",
+                        "message": MSG_NOT_BELONG_TO_USER
+                    })
+                if BA_Attribute_Value.objects.filter(pk=pk).exists():
+                    attr_value = BA_Attribute_Value.objects.get(pk=pk)
+                    attr_value.delete()
+                    return Response({
+                        "response": "success",
+                        "message": MSG_OBJECT_DELTED
+                    })
+                else:
+                    return Response({
+                            "response": "error",
+                            "message": MSG_OBJECT_NOT_FOUND
+                        }, status=status.HTTP_404_NOT_FOUND)
+            else:
+                return Response({
+                    "response":"error",
+                    "message": MSG_OBJECT_NOT_FOUND
+                })
+        except:
+            return Response({
+                "response":"error",
+                "message": MSG_UNKNOWN_ERROR
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+class BARatingCreate(APIView):
+    rating = openapi.Parameter('rating', in_=openapi.IN_QUERY, type=openapi.TYPE_INTEGER)
+    @swagger_auto_schema(
+        operation_summary = "Business Account rating 1-5",
+        operation_description="***IMPORTANT*** 'pk' is primary key of business account.",
+        manual_parameters=[rating]
+    )
+    def get(self, request, pk):
+        try:
+            if BusinessAccount.objects.filter(pk=pk).exists():
+                account = BusinessAccount.objects.get(pk=pk)
+                rating = request.query_params.get("rating", None)
+                if not rating.isdigit():
+                    return Response({
+                        "response":"error",
+                        "message": "'rating' need to be integer and between 1-5"
+                    })
+                rating = int(rating)
+                rating_count = account.rating_count
+                old_rating = account.rating
+                new_rating = calculate_rating(old_rating, rating_count, rating)
+                account.rating = round(new_rating, 2)
+                account.rating_count = rating_count + 1
+                account.save()
+                return Response({"response":"success", "rating":account.rating})
+            else:
+                return Response({
+                    "response":"error",
+                    "message": MSG_OBJECT_NOT_FOUND
+                })
+        except:
+            return Response({
+                "response":"error",
+                "message": MSG_UNKNOWN_ERROR
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+class BASeenCount(APIView):
+    @swagger_auto_schema(
+        operation_summary = "Business Account seen count",
+        operation_description="***IMPORTANT*** 'pk' is primary key of business account."
+    )
+    def get(self, request, pk):
+        if BusinessAccount.objects.filter(pk=pk).exists():
+            account = BusinessAccount.objects.get(pk=pk)
+            account.seen_count = account.seen_count + 1
+            account.save()
+            return Response({"response":"success", "seen_ccount":account.seen_count})
+        else:
+            return Response({
+                    "response":"error",
+                    "message": MSG_OBJECT_NOT_FOUND
+                })
