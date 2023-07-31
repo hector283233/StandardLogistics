@@ -134,7 +134,7 @@ class ADCommentUserSerializer(serializers.ModelSerializer):
 class ADCommentCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = AD_Comment
-        fields = "__all__"
+        exclude = ("is_active", )
 
 class ADCommentCreateOutSerializer(serializers.ModelSerializer):
     user = ADCommentUserSerializer()

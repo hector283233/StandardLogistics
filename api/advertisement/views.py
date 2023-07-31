@@ -1,12 +1,9 @@
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
-from django.contrib.auth import authenticate
-from rest_framework_simplejwt.tokens import RefreshToken
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
 from rest_framework.permissions import IsAuthenticated
-from django.contrib.auth.hashers import make_password
 from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework.pagination import LimitOffsetPagination
 from django.db.models import Q
@@ -22,12 +19,18 @@ class ADAttributeList(APIView):
         responses={200: ADAttributesListSerializer}
     )
     def get(self, request):
-        attributes = AD_Attribute.objects.all()
-        serializer = ADAttributesListSerializer(attributes, many=True)
-        return Response({
-            "response":"success",
-            "data": serializer.data
-        })
+        try:
+            attributes = AD_Attribute.objects.all()
+            serializer = ADAttributesListSerializer(attributes, many=True)
+            return Response({
+                "response":"success",
+                "data": serializer.data
+            })
+        except:
+            return Response({
+                "response":"error",
+                "message": MSG_UNKNOWN_ERROR
+            }, status=status.HTTP_400_BAD_REQUEST)
     
 class BannerList(APIView):
     created = openapi.Parameter('created', in_=openapi.IN_QUERY, type=openapi.TYPE_BOOLEAN)
@@ -40,35 +43,47 @@ class BannerList(APIView):
         responses={200: BannerListSerializer}
     )
     def get(self, request):
-        created = request.query_params.get("created", None)
-        type = request.query_params.get("type", None)
-        category = request.query_params.get("category", None)
-        banners = Banner.objects.filter(is_active=True)
-        if type:
-            type = int(type)
-            banners = banners.filter(type=type)
-        if category:
-            category = int(category)
-            banners = banners.filter(category=category)
-        if created == 'true':
-            banners = banners.order_by("-created_at")
-        if created == "false":
-            banners = banners.order_by("created_at")
+        try:
+            created = request.query_params.get("created", None)
+            type = request.query_params.get("type", None)
+            category = request.query_params.get("category", None)
+            banners = Banner.objects.filter(is_active=True)
+            if type:
+                type = int(type)
+                banners = banners.filter(type=type)
+            if category:
+                category = int(category)
+                banners = banners.filter(category=category)
+            if created == 'true':
+                banners = banners.order_by("-created_at")
+            if created == "false":
+                banners = banners.order_by("created_at")
 
-        serializer = BannerListSerializer(banners, many=True)
-        return Response({
-            "response":"success",
-            "data": serializer.data
-        })
+            serializer = BannerListSerializer(banners, many=True)
+            return Response({
+                "response":"success",
+                "data": serializer.data
+            })
+        except:
+            return Response({
+                "response":"error",
+                "message": MSG_UNKNOWN_ERROR
+            }, status=status.HTTP_400_BAD_REQUEST)
 
 class CategoryListView(APIView):
     def get(self, request):
-        categories = Category.objects.all()
-        serializer = CategoryListSerializer(categories, many=True)
-        return Response({
-            "response":"success",
-            "data": serializer.data
-        })
+        try:
+            categories = Category.objects.all()
+            serializer = CategoryListSerializer(categories, many=True)
+            return Response({
+                "response":"success",
+                "data": serializer.data
+            })
+        except:
+            return Response({
+                "response":"error",
+                "message": MSG_UNKNOWN_ERROR
+            }, status=status.HTTP_400_BAD_REQUEST)
 
 class AdvertisementList(APIView, LimitOffsetPagination):
     title = openapi.Parameter("title", in_=openapi.IN_QUERY, type=openapi.TYPE_STRING)
@@ -439,7 +454,6 @@ class ADAttrValueUpdate(APIView):
                 "message": MSG_UNKNOWN_ERROR
             }, status=status.HTTP_400_BAD_REQUEST)
         
-
 class ADAttrValueDelete(APIView):
     permission_classes = [IsAuthenticated]
     @swagger_auto_schema(
@@ -656,16 +670,22 @@ class ADSeenCount(APIView):
         operation_description="***IMPORTANT*** 'pk' is primary key of advertisement."
     )
     def get(self, request, pk):
-        if Advertisement.objects.filter(pk=pk).exists():
-            advertisement = Advertisement.objects.get(pk=pk)
-            advertisement.seen_count = advertisement.seen_count + 1
-            advertisement.save()
-            return Response({"response":"success", "seen_ccount":advertisement.seen_count})
-        else:
+        try:
+            if Advertisement.objects.filter(pk=pk).exists():
+                advertisement = Advertisement.objects.get(pk=pk)
+                advertisement.seen_count = advertisement.seen_count + 1
+                advertisement.save()
+                return Response({"response":"success", "seen_ccount":advertisement.seen_count})
+            else:
+                return Response({
+                        "response":"error",
+                        "message": MSG_OBJECT_NOT_FOUND
+                    })
+        except:
             return Response({
-                    "response":"error",
-                    "message": MSG_OBJECT_NOT_FOUND
-                })
+                "response":"error",
+                "message": MSG_UNKNOWN_ERROR
+            }, status=status.HTTP_400_BAD_REQUEST)
 
 class ADLikeCountAdd(APIView):
     @swagger_auto_schema(
@@ -673,19 +693,25 @@ class ADLikeCountAdd(APIView):
         operation_description="***IMPORTANT*** 'pk' is primary key of advertisement."
     )
     def get(self, request, pk):
-        if Advertisement.objects.filter(pk=pk).exists():
-            advertisement = Advertisement.objects.get(pk=pk)
-            advertisement.like_count = advertisement.like_count + 1
-            advertisement.save()
-            return Response({
-                "response":"success",
-                "like_count": advertisement.like_count
-            })
-        else:
-            return Response({
-                    "response":"error",
-                    "message": MSG_OBJECT_NOT_FOUND
+        try:
+            if Advertisement.objects.filter(pk=pk).exists():
+                advertisement = Advertisement.objects.get(pk=pk)
+                advertisement.like_count = advertisement.like_count + 1
+                advertisement.save()
+                return Response({
+                    "response":"success",
+                    "like_count": advertisement.like_count
                 })
+            else:
+                return Response({
+                        "response":"error",
+                        "message": MSG_OBJECT_NOT_FOUND
+                    })
+        except:
+            return Response({
+                "response":"error",
+                "message": MSG_UNKNOWN_ERROR
+            }, status=status.HTTP_400_BAD_REQUEST)
 
 class ADLikeCountRemove(APIView):
     @swagger_auto_schema(
@@ -693,16 +719,22 @@ class ADLikeCountRemove(APIView):
         operation_description="***IMPORTANT*** 'pk' is primary key of advertisement."
     )
     def get(self, request, pk):
-        if Advertisement.objects.filter(pk=pk).exists():
-            advertisement = Advertisement.objects.get(pk=pk)
-            advertisement.like_count = advertisement.like_count - 1
-            advertisement.save()
-            return Response({
-                "response":"success",
-                "like_count": advertisement.like_count
-            })
-        else:
-            return Response({
-                    "response":"error",
-                    "message": MSG_OBJECT_NOT_FOUND
+        try:
+            if Advertisement.objects.filter(pk=pk).exists():
+                advertisement = Advertisement.objects.get(pk=pk)
+                advertisement.like_count = advertisement.like_count - 1
+                advertisement.save()
+                return Response({
+                    "response":"success",
+                    "like_count": advertisement.like_count
                 })
+            else:
+                return Response({
+                        "response":"error",
+                        "message": MSG_OBJECT_NOT_FOUND
+                    })
+        except:
+            return Response({
+                "response":"error",
+                "message": MSG_UNKNOWN_ERROR
+            }, status=status.HTTP_400_BAD_REQUEST)

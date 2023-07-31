@@ -168,8 +168,25 @@ class WarehouseAttributeValue(Attribute_Values):
                                   verbose_name="Atribýut")
     
     class Meta:
-        verbose_name = "Ammar"
-        verbose_name_plural = "Ammarlar"
+        verbose_name = "Ammar Attribýut Baha"
+        verbose_name_plural = "Ammarlar Attribýut Bahalar"
+
+class WarehouseComment(CommentModel):
+    warehouse = models.ForeignKey(Warehouse, on_delete=models.CASCADE,
+                                  related_name='warehouse_warehouse_comment',
+                                  verbose_name="Ammar")
+    user = models.ForeignKey(User, on_delete=models.CASCADE,
+                             related_name='user_warehouse_comment',
+                             verbose_name="Ulanyjy")
+    
+    def __str__(self):
+        return str(self.warehouse)
+    
+    class Meta:
+        ordering = ['-created_at']
+        verbose_name = "Ammar Teswir"
+        verbose_name_plural = "Ammar Teswirler"
+
     
 class Transport(CommonModel):
     user = models.ForeignKey(User, on_delete=models.CASCADE,
@@ -211,3 +228,19 @@ class TransportAttributeValue(Attribute_Values):
     class Meta:
         verbose_name = "Ulag atr Bahasy"
         verbose_name_plural = "Ulag atr Bahalar"
+
+class TransportComment(CommentModel):
+    transport = models.ForeignKey(Transport, on_delete=models.CASCADE,
+                                  related_name='transport_transport_comment',
+                                  verbose_name="Ammar")
+    user = models.ForeignKey(User, on_delete=models.CASCADE,
+                             related_name='user_transport_comment',
+                             verbose_name="Ulanyjy")
+    
+    def __str__(self):
+        return str(self.transport)
+    
+    class Meta:
+        ordering = ['-created_at']
+        verbose_name = "Transport Teswir"
+        verbose_name_plural = "Transport Teswirler"

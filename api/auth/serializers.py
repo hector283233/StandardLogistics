@@ -32,8 +32,8 @@ class ChangePasswordSerializer(serializers.Serializer):
 class UserUpdateSerializer(serializers.Serializer):
     email = serializers.CharField(required=False)
     mobile = serializers.CharField(required=False)
-    mobile_verified = serializers.BooleanField(required=False)
-    email_verified = serializers.BooleanField(required=False)
+    # mobile_verified = serializers.BooleanField(required=False)
+    # email_verified = serializers.BooleanField(required=False)
 
 class ProfileOutSerializer(serializers.ModelSerializer):
     class Meta:

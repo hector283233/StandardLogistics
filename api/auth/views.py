@@ -298,12 +298,12 @@ class UpdateUser(APIView):
                 if 'email'  in data:
                     if data["email"] != None and data["email"] != "":
                         user.email = data['email']
-                if 'mobile_verified' in data:
-                    if data['mobile_verified'] == True:
-                        user.mobile_verified = True
-                if 'email_verified' in data:
-                    if data['email_verified'] == True:
-                        user.email_verified = True
+                # if 'mobile_verified' in data:
+                #     if data['mobile_verified'] == True:
+                #         user.mobile_verified = True
+                # if 'email_verified' in data:
+                #     if data['email_verified'] == True:
+                #         user.email_verified = True
                 
                 user.save()
                 out_serializer = UserDetailSerializer(user)
@@ -901,13 +901,19 @@ class BASeenCount(APIView):
         operation_description="***IMPORTANT*** 'pk' is primary key of business account."
     )
     def get(self, request, pk):
-        if BusinessAccount.objects.filter(pk=pk).exists():
-            account = BusinessAccount.objects.get(pk=pk)
-            account.seen_count = account.seen_count + 1
-            account.save()
-            return Response({"response":"success", "seen_ccount":account.seen_count})
-        else:
+        try:
+            if BusinessAccount.objects.filter(pk=pk).exists():
+                account = BusinessAccount.objects.get(pk=pk)
+                account.seen_count = account.seen_count + 1
+                account.save()
+                return Response({"response":"success", "seen_ccount":account.seen_count})
+            else:
+                return Response({
+                        "response":"error",
+                        "message": MSG_OBJECT_NOT_FOUND
+                    })
+        except:
             return Response({
-                    "response":"error",
-                    "message": MSG_OBJECT_NOT_FOUND
-                })
+                "response":"error",
+                "message": MSG_UNKNOWN_ERROR
+            }, status=status.HTTP_400_BAD_REQUEST)
